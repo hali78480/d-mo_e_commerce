@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <td class='align-middle'>
+        <a href='?action=modification&id_produit=$p[id_produit]' class='btn btn-dark'>
+            <i class='fa fa-pencil-square-o'> </i>
+        </a>
+    </td>
+    <td class='align-middle'><a href='?action=suppression&id_produit=$p[id_produit]' class='btn btn-danger'
+            onclick='return(confirm("Êtes vous sûr de vouloir supprimer?"))'><i class='far fa-trash-alt'></i></a>
+    </td>
+</body>
+
+</html>
+
+
+if (isset($_GET['action']) && $_GET['action'] == "suppression") {
+
+    $delete = $bdd->prepare("DELETE FROM  commande WHERE id_commande = :id_commande");
+
+    $delete->bindValue(':id_commande', $_GET['id_commande'], PDO::PARAM_INT);
+
+    $delete->execute();
+
+    $_GET['action'] = 'affichage';
+    $validationDelete = "<p class='col-md-6 mx-auto bg-success text-center text-white p-3 rounded'>La commande <strong><ID $_GET[id_commande]></strong> à bien été supprimé!</p>";
+}
+
+if ($_POST) {
+
+    if (isset($_GET['action']) && $_GET['action'] == "ajout") {
+        $data = $bdd->prepare("INSERT INTO commande(membre_id,montant,date_enregistrement,etat)VALUES(:id_commande,:membre_id, :montant, :date_enregistrement, :etat)");
+
+        $_GET['action'] = 'affichage';
+    } else {
+        //sinon action modification
+        $data = $bdd->prepare("UPDATE commande set membre_id = :membre_id, montant =:montant, date_enregistrement = :date_enregistrement, etat = :etat WHERE id_commande = :id_commande");
+        //$data = $bdd->prepare("UPDATE commande set membre_id = :membre_id, montant =:montant, etat = :etat WHERE id_commande = :id_commande" );
+        $data->bindValue(':id_commande', $_GET['id_commande'], PDO::PARAM_INT);
+
+        $_GET['action'] = 'affichage';
+    }
+
+
+
+
+    //Dans tt les cas bind + execution
+    $data->bindValue(':membre_id', $_POST['membre_id'], PDO::PARAM_INT);
+    $data->bindValue(':date_enregistrementom', $_POST['date_enregistrement'], PDO::PARAM_STR);
+    $data->bindValue(':montant', $_POST['montant'], PDO::PARAM_INT);
+    $data->bindValue(':etat', $_POST['etat'], PDO::PARAM_STR);
+  
+
+    $data->execute();
+}
+?>
+
+<ul class="col-md-4 mx-auto list-group text-center mt-5">
+    <li class="list-group-item bg-dark text-white">BACK OFFICE</li>
+    <li class="list-group-item bg-secondary"><a href="?action=affichage" class="col-md-8 btn btn-dark p-2">AFFICHAGE COMMANDE</a></li>
+
+</ul>
+
+
+
+echo "<h1 class='text-center text-secondary'>TABLEAU DE COMMANDES </h1>";
+if (isset($validationDelete)) echo $validationDelete;
+
+$data = $bdd->query("SELECT id_commande, membre_id, montant, date_enregistrement,etat FROM commande");
+echo '<table class=" col-md-8 mx-auto p-5 table table-bordered bg-secondary text-white text-center"><tr>';
+
+for ($i = 0; $i < $data->columnCount(); $i++) {
+    $c = $data->getColumnMeta($i);
+    echo "<th>" . strtoupper($c['name']) . "</th>";
+}
+echo "<th>MODIFIER</th>";
+echo "<th>SUPPRIMER</th>";
+
+
+echo '</tr>';
+while ($p = $data->fetch(PDO::FETCH_ASSOC)) {
+    echo '<tr>';
+    foreach ($p as $k => $value) {
+        if ($k == 'statut') {
+            echo "<td>$value</td>";
+        } else {
+            echo "<td class='align-middle'>$value</td>";
+        }
+    }
+
+
+    echo "<td class='align-middle'><a href='?action=modification&id_commande=$p[id_commande]' class='btn btn-light'><i class='fas fa-edit'></i></a></td>";
+
+
+    echo "<td class='align-middle'><a href='?action=suppression&id_commande=$p[id_commande]' class='btn btn-danger'onclick='return(confirm(\"Êtes vous sûr de vouloir supprimer?\"));'><i class='far fa-trash-alt'></i></a></td>";
+
+    echo '</tr>';
+    
+}
+
+echo '</table>';
+
+
+
+if (isset($_GET['action']) && ($_GET['action'] == 'ajout' || $_GET['action'] == 'modification')) :
+
+    //On selectionne tout dns la BDD à condition que id_prp = à l'id_prod dns l'url
+    //On selectionne toutes les données en BDD du produit que l'on souhaite modifier
+
+    if (isset($_GET['id_commande']) && !empty($_GET['id_commande']) && $_GET['action']) {
+        $requete = $bdd->prepare("SELECT* FROM commande WHERE id_commande = :id_commande");
+        $requete->bindValue(':id_commande', $_GET['id_commande'], PDO::PARAM_INT);
+        $requete->execute();
+
+
+        //Si la requête SELECT retourne 1 resultat, le produit est connu en BDD; on entre dns la condition IF
+
+        if ($requete->rowCount()) {
+            $pa = $requete->fetch(PDO::FETCH_ASSOC);
+            /* echo '<pre>';
+            print_r($pa);
+            echo '</pre>';
+            */
+        } else
+        //Sinon l'id_produit de l'URL n'est pas connu en BDD, on redirige vers l'affichage des produits 
+
+        {
+            header('location:' . URL . '.admin/gestion_boutique.php?action=affichage'); /////////////////////////////////////////////////////////////////
+        }
+    } elseif ($_GET['action'] == 'modification ' && (!isset($_GET['id_commande']) || empty($_GET['id_commande'])))
+    //Sinon l'indice id_produit
+    {
+        header('location:' . URL . 'admin/gestion_boutique.php?action=affichage'); //////////////////////////////////////////////////////////////////////
+    }
+    //on stock la ref du prod selsctionné en BDD dns la variable $reference afin de l'affecter à
+    //l'attribut 'value' du champs reference comme valeur par defaut
+    $id_commande = (isset($pa['id_commande'])) ? $pa['id_commande'] : '';
+    $membre_id = (isset($pa['membre_id'])) ? $pa['membre_id'] : '';
+    $montant = (isset($pa['montant'])) ? $pa['montant'] : '';
+    $date_enregistrement = (isset($pa['date_enregistrement'])) ? $pa['date_enregistrement'] : '';
+    $etat = (isset($pa['etat'])) ? $pa['etat'] : '';
+   
+
+
+?>
+    <!-- -->
+
+    <!--On va crocheter à l'indice 'action dns l'url afin de modofier le titre en fonction d'un
+    'ajout' ou d'une modif de produit
+       ucfirst() : fonction prédéfinie permettant d'afficher la première lettre d'une chaine de caractères en majuscule
+    -->
+
+
+
+    <h1 class=" text-center text-info"><?= ucfirst($_GET['action']) ?> COMMANDES</h1>
+    <form method="post" class="p-4 m-4 col-md-5 mx-auto table-bordered border border-dark table-rounded bg-secondary text-center text-white rounded">
+    <div class="form-group">
+            <label for="id_commande">ID commande</label>
+            <input class="bg-info" type="text" class="form-control" id="id_commande" name="id_commande" placeholder="" value="<?= $id_commande ?>">
+        </div>
+    <div class="form-group">
+            <label for="membre_id">ID membre</label>
+            <input class="bg-info" type="text" class="form-control" id="membre_id" name="membre_id" placeholder="" value="<?= $membre_id ?>">
+        </div>
+        <div class="form-group">
+            <label for="montant">Montant</label>
+            <input class="bg-info" type="text" class="form-control" id="montant" name="montant" value="<?= $montant ?>">
+        </div>
+        <div class=" form-group">
+            <label for="date_enregistrement">Date d'Enregistrement</label>
+            <input class="bg-info" type="text" class="form-control" id="date_enregistrement" name="date_enregistrement" value="<?= $date_enregistrement ?>">
+            <!-- -->
+        </div>
+        <div class="form-group">
+            <label for="etat">Etat de la commande</label>
+            <input class="bg-info" type="text" class="form-control" id="etat" name="etat" value="<?= $etat ?>">
+        </div>
+        
+
+
+
+        <div class="row justify-content-center">
+            <button type="submit" class=" col-md-5 btn btn-dark mx-auto text-info "><?= strtoupper($_GET['action']) ?></button>
+
+        </div>
+    </form>
+
+
+    endif;
+?>
+
+<?php
+
+
+
+
+
+
+
+
+
+
+
+
+
